@@ -3,6 +3,7 @@ import torch
 from torch.autograd import Variable
 import torch.nn.functional as F
 from torchvision import datasets, transforms
+from tensorboardX import SummaryWriter
 
 
 def get_data_loader(args):
@@ -37,6 +38,8 @@ class Trainer(object):
         self.train_loader = train_loader
         self.test_loader = test_loader
 
+        self.sm_writer = SummaryWriter()
+
     def set_model(self, model):
         args = self.args
         if args.use_cuda:
@@ -50,20 +53,23 @@ class Trainer(object):
 
     def train(self):
         args = self.args
-        losses = []
         for i_epoch in range(1, args.epoch + 1):
             loss = self.train_one_epoch(i_epoch)
-            losses.append(loss)
             test_loss, test_acc = self.test()
-            if i_epoch % 10:
-                print('{}th epoch, train loss: {}'.format(i_epoch,
-                                                          np.mean(losses)))
-                print('{}th epoch, test loss: {}'.format(i_epoch, test_loss))
-                print('{}th epoch, test acc: {}'.format(i_epoch, test_acc))
+            self.sm_writer.add_scalar(
+                    'data/train_loss', loss, i_epoch
+                    )
+            self.sm_writer.add_scalar(
+                    'data/val_loss', test_loss, i_epoch
+                    )
+            self.sm_writer.add_scalar(
+                    'data/val_acc', test_acc, i_epoch
+                    )
 
     def train_one_epoch(self, i_epoch):
         args = self.args
         self.model.train()
+        losses = []
         for batch_idx, (data, target) in enumerate(self.train_loader):
             if args.use_cuda:
                 data, target = data.cuda(), target.cuda()
@@ -75,7 +81,8 @@ class Trainer(object):
             loss = F.nll_loss(output, target)
             loss.backward()
             self.optimizer.step()
-        return loss.data.item()
+            losses.append(loss.item())
+        return np.mean(losses)
 
     def test(self):
         args = self.args
