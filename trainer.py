@@ -75,7 +75,7 @@ class Trainer(object):
             loss = F.nll_loss(output, target)
             loss.backward()
             self.optimizer.step()
-        return loss.data.tolist()[0]
+        return loss.data.item()
 
     def test(self):
         args = self.args
@@ -90,7 +90,7 @@ class Trainer(object):
             data = data.view(size[0], -1, size[2] * size[3])
             output = self.model(data)
             loss = F.nll_loss(output, target, size_average=False)
-            losses.append(loss.data.tolist()[0])
+            losses.append(loss.item())
             pred = output.data.max(1, keepdim=True)[1]
             correct += pred.eq(target.data.view_as(pred)).long().cpu().sum()
         accuracy = 100. * correct / len(self.test_loader.dataset)
